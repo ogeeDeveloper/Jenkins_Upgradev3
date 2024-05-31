@@ -50,7 +50,8 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 script {
-                    docker.build(DOCKER_IMAGE).push()
+                    def app = docker.build("${DOCKER_IMAGE}", "docker")
+                    app.push()
                 }
             }
         }
