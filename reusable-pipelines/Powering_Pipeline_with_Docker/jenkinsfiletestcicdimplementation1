@@ -1,5 +1,5 @@
 pipeline {
-    agent none
+    agent none  // No global agent
 
     environment {
         VERSION = '0.1.0'
@@ -14,11 +14,11 @@ pipeline {
             }
         }
 
-        stage('Audit tools') {
+        stage('Audit Tools') {
             agent { label 'docker-capable' }
             steps {
                 script {
-                    docker.image('maven:latest').inside('-u root') {
+                    docker.image('maven:latest').inside('-u root -v /home/jenkins/workspace/JenkinsTestPipeline1:/home/jenkins/workspace/JenkinsTestPipeline1') {
                         sh '''
                             java -version
                             mvn -version
@@ -34,7 +34,7 @@ pipeline {
             agent { label 'docker-capable' }
             steps {
                 script {
-                    docker.image('maven:latest').inside('-u root') {
+                    docker.image('maven:latest').inside('-u root -v /home/jenkins/workspace/JenkinsTestPipeline1:/home/jenkins/workspace/JenkinsTestPipeline1') {
                         dir('./java-tomcat-sample') {
                             sh 'mvn test'
                         }
@@ -47,8 +47,7 @@ pipeline {
             agent { label 'docker-capable' }
             steps {
                 script {
-                    docker.image('maven:latest').inside('-u root') {
-                        // Assuming SonarQube scanner is configured in Maven settings
+                    docker.image('maven:latest').inside('-u root -v /home/jenkins/workspace/JenkinsTestPipeline1:/home/jenkins/workspace/JenkinsTestPipeline1') {
                         sh 'mvn sonar:sonar'
                     }
                 }
@@ -59,7 +58,7 @@ pipeline {
             agent { label 'docker-capable' }
             steps {
                 script {
-                    docker.image('maven:latest').inside('-u root') {
+                    docker.image('maven:latest').inside('-u root -v /home/jenkins/workspace/JenkinsTestPipeline1:/home/jenkins/workspace/JenkinsTestPipeline1') {
                         sh 'mvn -f java-tomcat-sample/pom.xml clean package'
                     }
                 }
