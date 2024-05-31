@@ -1,67 +1,76 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:latest'
-            args '-u root'
-        }
-    }
-    
+    agent none  # Allows different stages to use different agents
+
     environment {
-      VERSION = '0.1.0'
-      RELEASE_VERSION = 'R.2'
+        VERSION = '0.1.0'
+        RELEASE_VERSION = 'R.2'
     }
 
     stages {
-      stage('Audit tools') {
-        steps {
-          sh '''
-              java -version
-              mvn -version
-          '''
-          sh 'printenv'
-          sh 'ls -l $WORKSPACE'
+        stage('Prepare') {
+            agent { label 'docker-capable' }  # Ensure agent has Docker
+            steps {
+                checkout scm  # Check out source code from repository
+            }
         }
-      }
 
-      stage('Unit Test') {
-        steps {
-          dir('./java-tomcat-sample') {
-            sh '''
-              echo "Executing Unit Tests..."
-              mvn test
-          '''
-          }
+        stage('Audit tools') {
+            agent { label 'docker-capable' }
+            steps {
+                script {
+                    docker.image('maven:latest').inside('-u root') {
+                        sh '''
+                            java -version
+                            mvn -version
+                        '''
+                        sh 'printenv'
+                        sh 'ls -l $WORKSPACE'
+                    }
+                }
+            }
         }
-      }
 
-      stage('Build') {
-        steps {
-          echo "Building version: ${VERSION} with suffix: ${RELEASE_VERSION}"
-          echo 'Mention your Application Build Code here!!!'
-          sh 'mvn -f java-tomcat-sample/pom.xml clean package'
+        stage('Unit Test') {
+            agent { label 'docker-capable' }
+            steps {
+                script {
+                    docker.image('maven:latest').inside('-u root') {
+                        dir('./java-tomcat-sample') {
+                            sh 'mvn test'
+                        }
+                    }
+                }
+            }
         }
-      }
+
+        stage('SonarQube Analysis') {
+            agent { label 'docker-capable' }
+            steps {
+                script {
+                    docker.image('maven:latest').inside('-u root') {
+                        // Assuming SonarQube scanner is configured in Maven settings
+                        sh 'mvn sonar:sonar'
+                    }
+                }
+            }
+        }
+
+        stage('Build and Package') {
+            agent { label 'docker-capable' }
+            steps {
+                script {
+                    docker.image('maven:latest').inside('-u root') {
+                        sh 'mvn -f java-tomcat-sample/pom.xml clean package'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up workspace'
+            deleteDir()
+        }
     }
 }
-
-
-
-/*
-Requirements -- 
-
-1. Jenkins Docker PlugIns
-    - Docker
-    - Docker Pipeline
-
-2. Install Docker Engine on Execution machine
-   Link -- https://docs.docker.com/engine/install/
-
-3. Add Jenkins User to Group
-   sudo usermod -a -G docker jenkins
-
-4. Reboot your Machine
-   reboot
-
-5. Execute Docker using root User-
-   args '-u root'
-*/
