@@ -4,6 +4,8 @@ pipeline {
     environment {
         VERSION = '0.1.0'
         RELEASE_VERSION = 'R.2'
+        LOCAL_REGISTRY = 'localhost:5000'
+        DOCKER_IMAGE = "${LOCAL_REGISTRY}/your-app:${VERSION}"
     }
 
     stages {
@@ -49,11 +51,25 @@ pipeline {
             }
         }
 
+        stage('Docker Build & Push') {
+            agent { label 'slave01' }
+            steps {
+                script {
+                    docker.build(DOCKER_IMAGE).push()
+                }
+            }
+        }
+
         stage('Deploy') {
             agent { label 'slave01' }
             steps {
-                echo "Deploying version: ${VERSION} with suffix: ${RELEASE_VERSION}"
-                # Add deployment steps here
+                script {
+                    sh '''
+                        echo "Deploying Docker container..."
+                        docker rm -f your-app || true
+                        docker run -d --name your-app -p 8080:8080 ${DOCKER_IMAGE}
+                    '''
+                }
             }
         }
     }
