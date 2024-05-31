@@ -1,5 +1,5 @@
 pipeline {
-    agent none
+    agent { label 'slave01' }
 
     environment {
         VERSION = '0.1.0'
@@ -10,7 +10,6 @@ pipeline {
 
     stages {
         stage('Audit Tools') {
-            agent { label 'slave01' }
             steps {
                 sh '''
                     java -version
@@ -22,7 +21,6 @@ pipeline {
         }
 
         stage('Unit Test') {
-            agent { label 'slave01' }
             steps {
                 dir('./java-tomcat-sample') {
                     sh '''
@@ -34,7 +32,6 @@ pipeline {
         }
 
         stage('Security Scan') {
-            agent { label 'slave01' }
             steps {
                 sh '''
                     echo "Running Security Scans..."
@@ -44,7 +41,6 @@ pipeline {
         }
 
         stage('Build') {
-            agent { label 'slave01' }
             steps {
                 echo "Building version: ${VERSION} with suffix: ${RELEASE_VERSION}"
                 sh 'mvn -f java-tomcat-sample/pom.xml clean package'
@@ -52,7 +48,6 @@ pipeline {
         }
 
         stage('Docker Build & Push') {
-            agent { label 'slave01' }
             steps {
                 script {
                     docker.build(DOCKER_IMAGE).push()
@@ -61,7 +56,6 @@ pipeline {
         }
 
         stage('Deploy') {
-            agent { label 'slave01' }
             steps {
                 script {
                     sh '''
