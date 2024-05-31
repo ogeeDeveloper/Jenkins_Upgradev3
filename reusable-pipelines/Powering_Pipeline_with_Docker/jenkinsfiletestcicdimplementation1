@@ -10,7 +10,7 @@ pipeline {
         stage('Prepare') {
             agent { label 'docker-capable' }
             steps {
-                checkout scm  # Check out source code from repository
+                checkout scm
             }
         }
 
