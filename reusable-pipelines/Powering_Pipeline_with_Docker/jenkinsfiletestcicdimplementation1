@@ -1,5 +1,5 @@
 pipeline {
-    agent none  # Allows different stages to use different agents
+    agent none
 
     environment {
         VERSION = '0.1.0'
