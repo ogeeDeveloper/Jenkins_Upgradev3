@@ -1,75 +1,61 @@
 pipeline {
-       agent none  // No default agent, specify agents at stage level
+    agent none  // No default agent; specify agents at stage level
 
-       environment {
-           VERSION = '0.1.0'
-           RELEASE_VERSION = 'R.2'
-       }
+    environment {
+        VERSION = '0.1.0'
+        RELEASE_VERSION = 'R.2'
+    }
 
-       stages {
-           stage('Prepare') {
-               agent { label 'docker-capable' }
-               steps {
-                   checkout scm
-               }
-           }
+    stages {
+        stage('Prepare') {
+            agent { label 'docker-capable' }  // This label should match your Jenkins slave configuration
+            steps {
+                checkout scm  // Checks out source code from the configured SCM repository
+            }
+        }
 
-           stage('Audit Tools') {
-               agent { label 'docker-capable' }
-               steps {
-                   script {
-                       docker.image('maven:latest').inside('-u root') {
-                           sh '''
-                               java -version
-                               mvn -version
-                           '''
-                           sh 'printenv'
-                           sh 'ls -l $WORKSPACE'
-                       }
-                   }
-               }
-           }
+        stage('Audit Tools') {
+            agent { label 'docker-capable' }
+            steps {
+                script {
+                    sh '''
+                        java -version
+                        mvn -version
+                    '''
+                    sh 'printenv'
+                    sh 'ls -l $WORKSPACE'
+                }
+            }
+        }
 
-           stage('Unit Test') {
-               agent { label 'docker-capable' }
-               steps {
-                   script {
-                       docker.image('maven:latest').inside('-u root') {
-                           dir('./java-tomcat-sample') {
-                               sh 'mvn test'
-                           }
-                       }
-                   }
-               }
-           }
+        stage('Unit Test') {
+            agent { label 'docker-capable' }
+            steps {
+                dir('./java-tomcat-sample') {
+                    sh 'mvn test'
+                }
+            }
+        }
 
-           stage('SonarQube Analysis') {
-               agent { label 'docker-capable' }
-               steps {
-                   script {
-                       docker.image('maven:latest').inside('-u root') {
-                           sh 'mvn sonar:sonar'
-                       }
-                   }
-               }
-           }
+        stage('SonarQube Analysis') {
+            agent { label 'docker-capable' }
+            steps {
+                sh 'mvn sonar:sonar -f java-tomcat-sample/pom.xml'  // Ensure SonarQube is configured in the Maven settings
+            }
+        }
 
-           stage('Build and Package') {
-               agent { label 'docker-capable' }
-               steps {
-                   script {
-                       docker.image('maven:latest').inside('-u root') {
-                           sh 'mvn -f java-tomcat-sample/pom.xml clean package'
-                       }
-                   }
-               }
-           }
-       }
+        stage('Build and Package') {
+            agent { label 'docker-capable' }
+            steps {
+                sh 'mvn -f java-tomcat-sample/pom.xml clean package'
+            }
+        }
+    }
 
-       post {
-           always {
-               echo 'Cleaning up workspace'
-               deleteDir()
-           }
-       }
-   }
+    post {
+        always {
+            echo 'Cleaning up workspace'
+            deleteDir()
+        }
+    }
+}
