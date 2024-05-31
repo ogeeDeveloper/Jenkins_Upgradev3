@@ -1,78 +1,67 @@
 pipeline {
-    agent { label 'slave01' }
+    agent none  # Allows different stages to use different agents
 
     environment {
         VERSION = '0.1.0'
         RELEASE_VERSION = 'R.2'
-        LOCAL_REGISTRY = 'localhost:5000'
-        DOCKER_IMAGE = "${LOCAL_REGISTRY}/your-app:${VERSION}"
     }
 
     stages {
-        stage('Audit Tools') {
+        stage('Prepare') {
+            agent { label 'docker-capable' }  # Ensure agent has Docker
             steps {
-                sh '''
-                    java -version
-                    mvn -version
-                '''
-                sh 'printenv'
-                sh 'ls -l $WORKSPACE'
+                checkout scm  # Check out source code from repository
             }
         }
 
-        stage('Unit Test') {
-            steps {
-                dir('./java-tomcat-sample') { // Adjust the path if needed to match your project structure
-                    sh '''
-                        echo "Executing Unit Tests..."
-                        mvn test
-                    '''
-                }
-            }
-        }
-
-        stage('Security Scan') {
-            steps {
-                sh '''
-                    echo "Running Security Scans..."
-                    # Assuming SonarQube commands or similar would be added here
-                '''
-            }
-        }
-
-        stage('Build') {
-            steps {
-                echo "Building version: ${VERSION} with suffix: ${RELEASE_VERSION}"
-                sh 'mvn -f java-tomcat-sample/pom.xml clean package' // Ensure this path is correct
-            }
-        }
-
-        stage('Docker Build & Push') {
+        stage('Audit tools') {
+            agent { label 'docker-capable' }
             steps {
                 script {
-                    // Print current directory and list files for debugging
-                    sh 'pwd'
-                    sh 'ls -la'
-
-                    // Adjust the directory if necessary
-                    dir('jenkins-slave') {
-                        sh 'pwd'  // Debugging: Print current directory inside jenkins-slave
-                        sh 'ls -la' // Debugging: List contents to verify Dockerfile presence
-                        sh "docker build -t ${DOCKER_IMAGE} ."
-                        sh "docker push ${DOCKER_IMAGE}"
+                    docker.image('maven:latest').inside('-u root') {
+                        sh '''
+                            java -version
+                            mvn -version
+                        '''
+                        sh 'printenv'
+                        sh 'ls -l $WORKSPACE'
                     }
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Unit Test') {
+            agent { label 'docker-capable' }
             steps {
                 script {
-                    sh '''
-                        echo "Deploying Docker container..."
-                        docker rm -f your-app || true
-                        docker run -d --name your-app -p 8080:8080 ${DOCKER_IMAGE}
-                    '''
+                    docker.image('maven:latest').inside('-u root') {
+                        dir('./java-tomcat-sample') {
+                            sh 'mvn test'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            agent { label 'docker-capable' }
+            steps {
+                script {
+                    docker.image('maven:latest').inside('-u root') {
+                        // Assuming SonarQube scanner is configured in Maven settings
+                        sh 'mvn sonar:sonar'
+                    }
+                }
+            }
+        }
+
+        stage('Build and Package') {
+            agent { label 'docker-capable' }
+            steps {
+                script {
+                    docker.image('maven:latest').inside('-u root') {
+                        sh 'mvn -f java-tomcat-sample/pom.xml clean package'
+                    }
                 }
             }
         }
@@ -81,7 +70,7 @@ pipeline {
     post {
         always {
             echo 'Cleaning up workspace'
-            deleteDir() // Clean up our workspace after the build is complete
+            deleteDir()
         }
     }
 }
