@@ -4,27 +4,26 @@ pipeline {
     environment {
         VERSION = '0.1.0'
         RELEASE_VERSION = 'R.2'
+        SONAR_HOST_URL = 'http://sonarqube:9000'  // Using Docker service name as hostname
     }
 
     stages {
         stage('Prepare') {
-            agent { label 'docker-capable' }  // This label should match your Jenkins slave configuration
+            agent { label 'docker-capable' }
             steps {
-                checkout scm  // Checks out source code from the configured SCM repository
+                checkout scm
             }
         }
 
         stage('Audit Tools') {
             agent { label 'docker-capable' }
             steps {
-                script {
-                    sh '''
-                        java -version
-                        mvn -version
-                    '''
-                    sh 'printenv'
-                    sh 'ls -l $WORKSPACE'
-                }
+                sh '''
+                    java -version
+                    mvn -version
+                '''
+                sh 'printenv'
+                sh 'ls -l $WORKSPACE'
             }
         }
 
@@ -40,7 +39,7 @@ pipeline {
         stage('SonarQube Analysis') {
             agent { label 'docker-capable' }
             steps {
-                sh 'mvn sonar:sonar -f java-tomcat-sample/pom.xml'  // Ensure SonarQube is configured in the Maven settings
+                sh "mvn sonar:sonar -Dsonar.projectKey=YourProjectKey -Dsonar.host.url=${env.SONAR_HOST_URL} -Dsonar.login=YourSonarToken"
             }
         }
 
