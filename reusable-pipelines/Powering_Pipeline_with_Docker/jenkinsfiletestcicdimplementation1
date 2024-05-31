@@ -50,10 +50,16 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 script {
-                    // Ensuring we are in the right directory where the Dockerfile and context are located
+                    // Print current directory and list files for debugging
+                    sh 'pwd'
+                    sh 'ls -la'
+
+                    // Adjust the directory if necessary
                     dir('jenkins-slave') {
-                        sh "docker build -t ${DOCKER_IMAGE} ." // Correctly set to build Docker image from current directory
-                        sh "docker push ${DOCKER_IMAGE}" // Push the built Docker image to the registry
+                        sh 'pwd'  // Debugging: Print current directory inside jenkins-slave
+                        sh 'ls -la' // Debugging: List contents to verify Dockerfile presence
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                        sh "docker push ${DOCKER_IMAGE}"
                     }
                 }
             }
