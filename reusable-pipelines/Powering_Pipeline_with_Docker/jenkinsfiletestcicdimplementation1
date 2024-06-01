@@ -2,11 +2,13 @@ pipeline {
     agent none  // No default agent; specify agents at stage level
 
     environment {
-        SONAR_HOST_URL = 'http://sonarqube:9000'  // Ensure this matches your SonarQube server URL
+        VERSION = '0.1.0'
+        RELEASE_VERSION = 'R.2'
+        SONAR_HOST_URL = 'http://sonarqube:9000'  // Using Docker service name as hostname
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Prepare') {
             agent { label 'docker-capable' }
             steps {
                 checkout scm
