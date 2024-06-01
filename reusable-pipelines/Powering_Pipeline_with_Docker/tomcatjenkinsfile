@@ -1,0 +1,60 @@
+pipeline {
+    agent none // This indicates that the pipeline or its individual stages can select different agents.
+
+    environment {
+        // Define environment variables
+        SONAR_PROJECT_KEY = 'JavaTomcatSample' // Replace with your actual SonarQube project key
+        SONAR_HOST_URL = 'http://<your-sonarqube-server>:9000' // Replace with your SonarQube server URL
+        SONAR_AUTH_TOKEN = '<your-sonar-auth-token>' // Replace with your SonarQube authentication token
+    }
+
+    stages {
+        stage('Checkout Code') {
+            agent { label 'maven' } // Specifies that this stage should use an agent that fits the 'maven' label
+            steps {
+                checkout scm // This step checks out the source code from source control
+            }
+        }
+
+        stage('Audit Tools') {
+            agent { label 'maven' }
+            steps {
+                sh 'java -version'
+                sh 'mvn -version'
+                sh 'printenv' // Print environment variables for debugging purposes
+            }
+        }
+
+        stage('Unit Test and SonarQube Analysis') {
+            agent { label 'maven' }
+            steps {
+                dir('java-tomcat-sample') { // Assumes your Maven project is in the 'java-tomcat-sample' directory
+                    sh """
+                    mvn clean verify sonar:sonar \
+                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                    -Dsonar.host.url=${SONAR_HOST_URL} \
+                    -Dsonar.login=${SONAR_AUTH_TOKEN}
+                    """
+                }
+            }
+        }
+
+        stage('Build Project') {
+            agent { label 'maven' }
+            steps {
+                dir('java-tomcat-sample') {
+                    sh 'mvn clean package'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build succeeded!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}
