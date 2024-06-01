@@ -5,6 +5,7 @@ pipeline {
         VERSION = '0.1.0'
         RELEASE_VERSION = 'R.2'
         SONAR_HOST_URL = 'http://sonarqube:9000'  // Using Docker service name as hostname
+        JAVA_HOME = '/usr/lib/jvm/java-17-openjdk' // Ensure this path is correct for Java 17 on your agent
     }
 
     stages {
