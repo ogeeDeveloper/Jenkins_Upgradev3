@@ -31,6 +31,7 @@ pipeline {
             agent { label 'docker-capable' }
             steps {
                 dir('./java-tomcat-sample') {
+                    echo "Executing Unit Tests..."
                     sh 'mvn test'
                 }
             }
@@ -41,6 +42,7 @@ pipeline {
                steps {
                    script {
                        withSonarQubeEnv('SonarQube_Server') {
+                           echo "Executing SonarQube scan..."
                            sh "mvn clean verify sonar:sonar"
                        }
                    }
@@ -50,6 +52,7 @@ pipeline {
         stage('Build and Package') {
             agent { label 'docker-capable' }
             steps {
+                echo "Executing Unit Build and Package..."
                 sh 'mvn -f java-tomcat-sample/pom.xml clean package'
             }
         }
