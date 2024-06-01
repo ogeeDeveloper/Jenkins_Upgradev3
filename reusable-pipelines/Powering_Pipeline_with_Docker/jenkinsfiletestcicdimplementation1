@@ -2,13 +2,11 @@ pipeline {
     agent none  // No default agent; specify agents at stage level
 
     environment {
-        VERSION = '0.1.0'
-        RELEASE_VERSION = 'R.2'
-        SONAR_HOST_URL = 'http://sonarqube:9000'  // Using Docker service name as hostname
+        SONAR_HOST_URL = 'http://sonarqube:9000'  // Ensure this matches your SonarQube server URL
     }
 
     stages {
-        stage('Prepare') {
+        stage('Checkout Code') {
             agent { label 'docker-capable' }
             steps {
                 checkout scm
@@ -18,42 +16,45 @@ pipeline {
         stage('Audit Tools') {
             agent { label 'docker-capable' }
             steps {
-                sh '''
-                    java -version
-                    mvn -version
-                '''
-                sh 'printenv'
-                sh 'ls -l $WORKSPACE'
+                dir('java-tomcat-sample') {
+                    sh '''
+                        java -version
+                        mvn -version
+                    '''
+                    sh 'printenv'
+                    sh 'ls -l'
+                }
             }
         }
 
         stage('Unit Test') {
             agent { label 'docker-capable' }
             steps {
-                dir('./java-tomcat-sample') {
-                    echo "Executing Unit Tests..."
+                dir('java-tomcat-sample') {
                     sh 'mvn test'
                 }
             }
         }
 
         stage('SonarQube Analysis') {
-               agent { label 'docker-capable' }
-               steps {
-                   script {
-                       withSonarQubeEnv('SonarQube_Server') {
-                           echo "Executing SonarQube scan..."
-                           sh "mvn clean verify sonar:sonar"
-                       }
-                   }
-               }
-           }
+            agent { label 'docker-capable' }
+            steps {
+                dir('java-tomcat-sample') {
+                    script {
+                        withSonarQubeEnv('SonarQube_Server') {
+                            sh "mvn clean verify sonar:sonar"
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Build and Package') {
             agent { label 'docker-capable' }
             steps {
-                echo "Executing Unit Build and Package..."
-                sh 'mvn -f java-tomcat-sample/pom.xml clean package'
+                dir('java-tomcat-sample') {
+                    sh 'mvn clean package'
+                }
             }
         }
     }
