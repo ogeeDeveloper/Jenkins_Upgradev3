@@ -9,7 +9,7 @@ pipeline {
 
     stages {
         stage('Prepare') {
-            agent { label 'docker-capable' }
+            agent { label 'maven' }
             steps {
                 checkout scm
                 echo "Checkout complete."
@@ -17,7 +17,7 @@ pipeline {
         }
 
         stage('Audit Tools') {
-            agent { label 'docker-capable' }
+            agent { label 'maven' }
             steps {
                 dir('java-tomcat-sample') {
                     sh 'java -version'
@@ -30,7 +30,7 @@ pipeline {
         }
 
         stage('Unit Test') {
-            agent { label 'docker-capable' }
+            agent { label 'maven' }
             steps {
                 dir('java-tomcat-sample') {
                     sh 'mvn test -X'  // Enable Maven debug output
@@ -40,7 +40,7 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            agent { label 'docker-capable' }
+            agent { label 'maven' }
             steps {
                 dir('java-tomcat-sample') {
                     script {
@@ -55,7 +55,7 @@ pipeline {
         }
 
         stage('Build and Package') {
-            agent { label 'docker-capable' }
+            agent { label 'maven' }
             steps {
                 dir('java-tomcat-sample') {
                     sh 'mvn clean package'  // Enable Maven debug output
@@ -67,7 +67,7 @@ pipeline {
 
     post {
         always {
-            node('docker-capable') {  // Use a node block to specify the context
+            node('maven') {  // Use a node block to specify the context
                 echo 'Cleaning up workspace'
                 deleteDir()
             }
