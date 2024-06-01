@@ -58,7 +58,7 @@ pipeline {
             agent { label 'docker-capable' }
             steps {
                 dir('java-tomcat-sample') {
-                    sh 'mvn clean package -X'  // Enable Maven debug output
+                    sh 'mvn clean package'  // Enable Maven debug output
                     echo "Build and packaging completed."
                 }
             }
@@ -67,8 +67,10 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up workspace'
-            deleteDir()
+            node('docker-capable') {  // Use a node block to specify the context
+                echo 'Cleaning up workspace'
+                deleteDir()
+            }
         }
     }
 }
