@@ -37,11 +37,15 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            agent { label 'docker-capable' }
-            steps {
-                sh "mvn sonar:sonar -Dsonar.projectKey=YourProjectKey -Dsonar.host.url=${env.SONAR_HOST_URL} -Dsonar.login=YourSonarToken"
-            }
-        }
+               agent { label 'docker-capable' }
+               steps {
+                   script {
+                       withSonarQubeEnv('SonarQube_Server') {
+                           sh "mvn clean verify sonar:sonar"
+                       }
+                   }
+               }
+           }
 
         stage('Build and Package') {
             agent { label 'docker-capable' }
