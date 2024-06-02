@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         DIGITALOCEAN_TOKEN = credentials('digitalocean-api-token')
-        SONAR_SCANNER_HOME = tool 'SonarQubeScanner' // Adjust the tool name as per your setup
+        SONAR_SCANNER_HOME = tool 'SonarQubeScanner'
     }
     stages {
         stage('Checkout') {
