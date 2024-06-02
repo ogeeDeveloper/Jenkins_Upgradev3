@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         DIGITALOCEAN_TOKEN = credentials('digitalocean-api-token')
-        SONAR_SCANNER_HOME = tool 'SonarQubeScanner'
+        SONAR_SCANNER_HOME = tool 'sonarqube 6.0.0'
     }
     stages {
         stage('Checkout') {
@@ -49,7 +49,7 @@ pipeline {
             }
         }
         stage('Unit Test') {
-            agent { label 'Agent' }
+            agent { label 'maven' }
             steps {
                 dir('java-tomcat-sample') {
                     sh 'mvn test'
@@ -60,7 +60,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    withSonarQubeEnv('SonarQube_Server') {
+                    withSonarQubeEnv('sonarqube_token') {
                         dir('java-tomcat-sample') {
                             sh "${env.SONAR_SCANNER_HOME}/bin/sonar-scanner"
                         }
