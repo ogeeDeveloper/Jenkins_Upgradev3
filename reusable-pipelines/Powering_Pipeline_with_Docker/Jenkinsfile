@@ -1,0 +1,87 @@
+pipeline {
+    agent any
+    environment {
+        DIGITALOCEAN_TOKEN = credentials('digitalocean-api-token')
+        SONAR_SCANNER_HOME = tool 'SonarQubeScanner' // Adjust the tool name as per your setup
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git'
+            }
+        }
+        stage('Terraform Init') {
+            steps {
+                script {
+                    dir('terraform') {
+                        sh 'terraform init'
+                    }
+                }
+            }
+        }
+        stage('Terraform Plan') {
+            steps {
+                script {
+                    dir('terraform') {
+                        sh 'terraform plan -var digitalocean_token=$DIGITALOCEAN_TOKEN'
+                    }
+                }
+            }
+        }
+        stage('Terraform Apply') {
+            steps {
+                script {
+                    dir('terraform') {
+                        sh 'terraform apply -var digitalocean_token=$DIGITALOCEAN_TOKEN -auto-approve'
+                    }
+                }
+            }
+        }
+        stage('Ansible Setup') {
+            steps {
+                script {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'your-ssh-key-id', keyFileVariable: 'SSH_KEY')]) {
+                        dir('ansible') {
+                            sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory setup.yml --private-key $SSH_KEY'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Unit Test') {
+            agent { label 'Agent' }
+            steps {
+                dir('java-tomcat-sample') {
+                    sh 'mvn test'
+                    echo "Unit tests completed."
+                }
+            }
+        }
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    withSonarQubeEnv('SonarQube_Server') {
+                        dir('java-tomcat-sample') {
+                            sh "${env.SONAR_SCANNER_HOME}/bin/sonar-scanner"
+                        }
+                    }
+                }
+            }
+        }
+        stage('Build Artifact') {
+            steps {
+                dir('java-tomcat-sample') {
+                    sh 'mvn package'
+                    archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+                }
+            }
+        }
+        stage('Prometheus Monitoring') {
+            steps {
+                script {
+                    sh 'curl http://prometheus:9090'
+                }
+            }
+        }
+    }
+}
