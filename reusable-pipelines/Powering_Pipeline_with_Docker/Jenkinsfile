@@ -1,72 +1,71 @@
 pipeline {
-    agent {
-        label 'agent'
-    }
+    agent any
 
     environment {
-        GIT_REPO = 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git'
-        MAVEN_PROJECT_DIR = 'java-tomcat-sample'
+        SONARQUBE_ENV = 'SonarQubeServer'
+        SCANNER_HOME = tool 'SonarQubeScanner'
+        DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git url: env.GIT_REPO
+                git url: 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git', branch: 'main'
             }
         }
+
         stage('Build') {
             steps {
-                dir(env.MAVEN_PROJECT_DIR) {
+                withMaven(maven: 'Maven') {
                     sh 'mvn clean install'
                 }
             }
         }
-        stage('Static Code Analysis') {
+
+        stage('SonarQube Analysis') {
             steps {
-                script {
-                    withSonarQubeEnv('SonarQube') {
-                        dir(env.MAVEN_PROJECT_DIR) {
-                            sh 'mvn sonar:sonar'
-                        }
-                    }
-                    checkmarxScan failBuildOnError: true
+                withSonarQubeEnv('SonarQubeServer') {
+                    sh "${SCANNER_HOME}/bin/sonar-scanner -Dsonar.projectKey=java-tomcat-sample -Dsonar.sources=src -Dsonar.java.binaries=target"
                 }
             }
         }
-        stage('Deploy to Test Environment') {
+
+        stage('IaC Validation') {
             steps {
-                script {
-                    sh 'terraform init && terraform apply -auto-approve'
-                    ansiblePlaybook playbook: 'deploy.yml'
-                }
+                sh 'terraform validate'
+                sh 'terraform plan'
             }
         }
-        stage('DAST with OWASP ZAP') {
+
+        stage('OWASP ZAP Scan') {
             steps {
-                script {
-                    zapAttack target: 'http://test-environment-url'
-                }
+                sh 'docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py -t http://localhost -g gen.conf -r zap_report.html'
+                archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
             }
         }
-        stage('Deploy to Production') {
+
+        stage('Deploy') {
             steps {
-                script {
-                    sh 'terraform apply -var="env=prod" -auto-approve'
-                    ansiblePlaybook playbook: 'deploy_prod.yml'
-                }
+                sh 'docker-compose up -d'
             }
         }
     }
+
     post {
         always {
-            junit 'target/surefire-reports/*.xml'
-            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+            echo 'Cleaning up...'
+            sh 'docker-compose down'
         }
         success {
-            emailext to: 'team@example.com', subject: 'Build Successful', body: 'The build was successful!'
+            echo 'Pipeline succeeded!'
         }
         failure {
-            emailext to: 'team@example.com', subject: 'Build Failed', body: 'The build failed. Please check Jenkins for details.'
+            echo 'Pipeline failed!'
+            emailext (
+                subject: "Jenkins: ${currentBuild.fullDisplayName}",
+                body: "Something went wrong with ${env.BUILD_URL}",
+                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+            )
         }
     }
 }
