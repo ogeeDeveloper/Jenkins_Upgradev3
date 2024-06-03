@@ -31,8 +31,9 @@ pipeline {
 
         stage('IaC Validation') {
             steps {
+                sh 'terraform init'
                 sh 'terraform validate'
-                sh 'terraform plan'
+                sh 'terraform plan -out=tfplan'
             }
         }
 
@@ -40,6 +41,12 @@ pipeline {
             steps {
                 sh 'docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py -t http://localhost -g gen.conf -r zap_report.html'
                 archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                sh 'terraform apply -auto-approve tfplan'
             }
         }
 
