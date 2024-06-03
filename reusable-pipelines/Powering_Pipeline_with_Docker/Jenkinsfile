@@ -52,10 +52,8 @@ pipeline {
 
     post {
         always {
-            node {
-                echo 'Cleaning up...'
-                sh 'docker-compose down'
-            }
+            echo 'Cleaning up...'
+            sh 'docker-compose down'
         }
         success {
             echo 'Pipeline succeeded!'
