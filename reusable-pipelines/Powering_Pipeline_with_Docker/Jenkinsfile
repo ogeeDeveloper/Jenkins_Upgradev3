@@ -10,7 +10,7 @@ pipeline {
         stage('Copy Terraform Files') {
             steps {
                 sh 'mkdir -p /home/jenkins/workspace/CICD_Implementation/terraform'
-                sh 'cp /home/jenkins/terraform-ci-cd_2024/terraform/* /home/jenkins/workspace/CICD_Implementation/terraform/'
+                sh 'cp /root/terraform-ci-cd_2024/* /home/jenkins/workspace/CICD_Implementation/terraform/'
             }
         }
         stage('Terraform Init') {
