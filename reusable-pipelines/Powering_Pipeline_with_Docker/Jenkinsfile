@@ -2,78 +2,71 @@ pipeline {
     agent {
         label 'agent'
     }
+
     environment {
-        SONAR_HOST_URL = 'http://174.138.63.154:9000'
-        SONARQUBE_SCANNER = tool name: 'sonarqube 6.0.0', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+        GIT_REPO = 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git'
+        MAVEN_PROJECT_DIR = 'java-tomcat-sample'
     }
+
     stages {
-        stage('Copy Terraform Files') {
+        stage('Checkout') {
             steps {
-                sh 'mkdir -p /home/jenkins/workspace/CICD_Implementation/terraform'
-                sh 'cp -r /home/jenkins/terraform-ci-cd_2024/* /home/jenkins/workspace/CICD_Implementation/terraform/'
+                git url: env.GIT_REPO
             }
         }
-        stage('Terraform Init') {
+        stage('Build') {
             steps {
-                dir('terraform') {
-                    sh 'terraform init'
+                dir(env.MAVEN_PROJECT_DIR) {
+                    sh 'mvn clean install'
                 }
             }
         }
-        stage('Terraform Plan') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform plan'
-                }
-            }
-        }
-        stage('Terraform Apply') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform apply -auto-approve'
-                }
-            }
-        }
-        stage('Ansible Setup') {
-            steps {
-                dir('ansible') {
-                    sh 'ansible-playbook setup.yml'
-                }
-            }
-        }
-        stage('Unit Test') {
-            agent { label 'maven' }
-            steps {
-                dir('java-tomcat-sample') {
-                    sh 'mvn test -X'
-                    echo "Unit tests completed."
-                }
-            }
-        }
-        stage('SonarQube Analysis') {
-            steps {
-                dir('java-tomcat-sample') {
-                    withSonarQubeEnv('sonarqube_token') {
-                        sh 'mvn sonar:sonar'
-                    }
-                }
-            }
-        }
-        stage('Build Artifact') {
-            steps {
-                dir('java-tomcat-sample') {
-                    sh 'mvn package'
-                    archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
-                }
-            }
-        }
-        stage('Prometheus Monitoring') {
+        stage('Static Code Analysis') {
             steps {
                 script {
-                    def response = httpRequest 'http://your-prometheus-server:9090/metrics'
-                    echo "Prometheus metrics fetched"
+                    withSonarQubeEnv('SonarQube') {
+                        dir(env.MAVEN_PROJECT_DIR) {
+                            sh 'mvn sonar:sonar'
+                        }
+                    }
+                    checkmarxScan failBuildOnError: true
                 }
             }
+        }
+        stage('Deploy to Test Environment') {
+            steps {
+                script {
+                    sh 'terraform init && terraform apply -auto-approve'
+                    ansiblePlaybook playbook: 'deploy.yml'
+                }
+            }
+        }
+        stage('DAST with OWASP ZAP') {
+            steps {
+                script {
+                    zapAttack target: 'http://test-environment-url'
+                }
+            }
+        }
+        stage('Deploy to Production') {
+            steps {
+                script {
+                    sh 'terraform apply -var="env=prod" -auto-approve'
+                    ansiblePlaybook playbook: 'deploy_prod.yml'
+                }
+            }
+        }
+    }
+    post {
+        always {
+            junit 'target/surefire-reports/*.xml'
+            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+        }
+        success {
+            emailext to: 'team@example.com', subject: 'Build Successful', body: 'The build was successful!'
+        }
+        failure {
+            emailext to: 'team@example.com', subject: 'Build Failed', body: 'The build failed. Please check Jenkins for details.'
         }
     }
 }
