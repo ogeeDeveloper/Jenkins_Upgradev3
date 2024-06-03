@@ -3,13 +3,14 @@ pipeline {
         label 'agent'
     }
     environment {
-        SONAR_HOST_URL = 'http://174.138.63.15:9000'
+        SONAR_HOST_URL = 'http://174.138.63.154:9000'
         SONARQUBE_SCANNER = tool name: 'sonarqube 6.0.0', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
     stages {
         stage('Terraform Init') {
             steps {
                 dir('terraform') {
+                    sh 'ls -al'  // List files to verify the directory contents
                     sh 'terraform init'
                 }
             }
