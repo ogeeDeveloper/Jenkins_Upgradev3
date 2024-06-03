@@ -1,50 +1,37 @@
 pipeline {
-    agent any
+    agent {
+        label 'agent'
+    }
     environment {
-        DIGITALOCEAN_TOKEN = credentials('digitalocean-api-token')
-        SONAR_SCANNER_HOME = tool 'sonarqube 6.0.0'
+        SONAR_HOST_URL = 'http://your-sonarqube-server:9000'
+        SONARQUBE_SCANNER = tool name: 'SonarQubeScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
     stages {
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git'
-            }
-        }
         stage('Terraform Init') {
             steps {
-                script {
-                    dir('terraform') {
-                        sh 'terraform init'
-                    }
+                dir('terraform') {
+                    sh 'terraform init'
                 }
             }
         }
         stage('Terraform Plan') {
             steps {
-                script {
-                    dir('terraform') {
-                        sh 'terraform plan -var digitalocean_token=$DIGITALOCEAN_TOKEN'
-                    }
+                dir('terraform') {
+                    sh 'terraform plan'
                 }
             }
         }
         stage('Terraform Apply') {
             steps {
-                script {
-                    dir('terraform') {
-                        sh 'terraform apply -var digitalocean_token=$DIGITALOCEAN_TOKEN -auto-approve'
-                    }
+                dir('terraform') {
+                    sh 'terraform apply -auto-approve'
                 }
             }
         }
         stage('Ansible Setup') {
             steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'your-ssh-key-id', keyFileVariable: 'SSH_KEY')]) {
-                        dir('ansible') {
-                            sh 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory setup.yml --private-key $SSH_KEY'
-                        }
-                    }
+                dir('ansible') {
+                    sh 'ansible-playbook setup.yml'
                 }
             }
         }
@@ -52,18 +39,16 @@ pipeline {
             agent { label 'maven' }
             steps {
                 dir('java-tomcat-sample') {
-                    sh 'mvn test'
+                    sh 'mvn test -X'
                     echo "Unit tests completed."
                 }
             }
         }
         stage('SonarQube Analysis') {
             steps {
-                script {
+                dir('java-tomcat-sample') {
                     withSonarQubeEnv('sonarqube_token') {
-                        dir('java-tomcat-sample') {
-                            sh "${env.SONAR_SCANNER_HOME}/bin/sonar-scanner"
-                        }
+                        sh 'mvn sonar:sonar'
                     }
                 }
             }
@@ -79,7 +64,8 @@ pipeline {
         stage('Prometheus Monitoring') {
             steps {
                 script {
-                    sh 'curl http://prometheus:9090'
+                    def response = httpRequest 'http://your-prometheus-server:9090/metrics'
+                    echo "Prometheus metrics fetched"
                 }
             }
         }
