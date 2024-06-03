@@ -9,7 +9,10 @@ pipeline {
     stages {
         stage('Copy Terraform Files') {
             steps {
-                sh 'mkdir -p ${WORKSPACE}/terraform && cp /home/jenkins/terraform-ci-cd_2024/* ${WORKSPACE}/terraform/'
+                sh '''
+                    mkdir -p ${WORKSPACE}/terraform
+                    cp -r /home/ubuntu/terraform-ci-cd_2024/* ${WORKSPACE}/terraform/
+                '''
             }
         }
         stage('Terraform Init') {
