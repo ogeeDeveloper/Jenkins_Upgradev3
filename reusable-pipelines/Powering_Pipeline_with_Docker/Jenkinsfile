@@ -4,7 +4,6 @@ pipeline {
     environment {
         SONARQUBE_ENV = 'SonarQubeServer'
         SCANNER_HOME = tool 'SonarQubeScanner'
-        DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
     }
 
     stages {
@@ -53,8 +52,10 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up...'
-            sh 'docker-compose down'
+            node {
+                echo 'Cleaning up...'
+                sh 'docker-compose down'
+            }
         }
         success {
             echo 'Pipeline succeeded!'
