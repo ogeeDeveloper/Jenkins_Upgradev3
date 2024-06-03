@@ -4,7 +4,7 @@ pipeline {
     }
     environment {
         SONAR_HOST_URL = 'http://174.138.63.154:9000'
-        SONARQUBE_SCANNER = tool name: 'sonarqube 6.0.0', type: 'hudson.plugins.sonar.SonarRunnerInstallation
+        SONARQUBE_SCANNER = tool name: 'sonarqube 6.0.0', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
     stages {
         stage('Terraform Init') {
