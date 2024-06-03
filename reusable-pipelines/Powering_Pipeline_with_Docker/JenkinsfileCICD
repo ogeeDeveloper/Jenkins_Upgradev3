@@ -1,0 +1,74 @@
+pipeline {
+    agent any
+
+    environment {
+        GIT_REPO = 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git'
+        MAVEN_PROJECT_DIR = 'java-tomcat-sample'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: env.GIT_REPO
+            }
+        }
+        stage('Build') {
+            steps {
+                dir(env.MAVEN_PROJECT_DIR) {
+                    sh 'mvn clean install'
+                }
+            }
+        }
+        stage('Static Code Analysis') {
+            steps {
+                script {
+                    // SonarQube analysis
+                    withSonarQubeEnv('sonarqube_server') {
+                        dir(env.MAVEN_PROJECT_DIR) {
+                            sh 'mvn sonar:sonar'
+                        }
+                    }
+                    // Checkmarx analysis
+                    checkmarxScan failBuildOnError: true
+                }
+            }
+        }
+        stage('Deploy to Test Environment') {
+            steps {
+                script {
+                    // Terraform and Ansible deployment
+                    sh 'terraform init && terraform apply -auto-approve'
+                    ansiblePlaybook playbook: 'deploy.yml'
+                }
+            }
+        }
+        stage('DAST with OWASP ZAP') {
+            steps {
+                script {
+                    zapAttack target: 'http://test-environment-url'
+                }
+            }
+        }
+        stage('Deploy to Production') {
+            steps {
+                script {
+                    // Deploy to production if all tests pass
+                    sh 'terraform apply -var="env=prod" -auto-approve'
+                    ansiblePlaybook playbook: 'deploy_prod.yml'
+                }
+            }
+        }
+    }
+    post {
+        always {
+            junit 'target/surefire-reports/*.xml'
+            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+        }
+        success {
+            emailext to: 'team@example.com', subject: 'Build Successful', body: 'The build was successful!'
+        }
+        failure {
+            emailext to: 'team@example.com', subject: 'Build Failed', body: 'The build failed. Please check Jenkins for details.'
+        }
+    }
+}
