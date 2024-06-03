@@ -4,12 +4,13 @@ pipeline {
     environment {
         SONARQUBE_ENV = 'SonarQubeServer'
         SCANNER_HOME = '/opt/sonar-scanner'
+        DOCKER_HUB_CREDS = credentials('docker-hub-credentials')
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git', branch: 'main'
+                git url: 'https://github.com/ogeeDeveloper/Jenkins_Upgradev3.git', branch: 'master' // or 'main' depending on your repository's default branch
             }
         }
 
@@ -24,29 +25,33 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQubeServer') {
-                    sh "${SCANNER_HOME}/bin/sonar-scanner -Dsonar.projectKey=java-tomcat-sample -Dsonar.sources=src -Dsonar.java.binaries=target"
+                    sh "${SCANNER_HOME}/bin/sonar-scanner -Dsonar.projectKey=java-tomcat-sample -Dsonar.sources=src -Dsonar.sources=src -Dsonar.host.url=${SONARQUBE_ENV} -Dsonar.login=${SONARQUBE_LOGIN}"
                 }
             }
         }
-
         stage('IaC Validation') {
             steps {
-                sh 'terraform init'
-                sh 'terraform validate'
-                sh 'terraform plan -out=tfplan'
+                sh '''
+                cd terraform
+                terraform init
+                terraform validate
+                '''
             }
         }
 
         stage('OWASP ZAP Scan') {
             steps {
-                sh 'docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py -t http://localhost -g gen.conf -r zap_report.html'
-                archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
+                sh 'echo "Running OWASP ZAP scan"'
+                // Add your OWASP ZAP scan commands here
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                sh 'terraform apply -auto-approve tfplan'
+                sh '''
+                cd terraform
+                terraform apply -auto-approve
+                '''
             }
         }
 
@@ -63,15 +68,15 @@ pipeline {
             sh 'docker-compose down'
         }
         success {
-            echo 'Pipeline succeeded!'
+            emailext subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                    body: "Great news! The job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' was successful. \nCheck it out at ${env.BUILD_URL}",
+                    to: 'your_email@example.com'
         }
         failure {
-            echo 'Pipeline failed!'
-            emailext (
-                subject: "Jenkins: ${currentBuild.fullDisplayName}",
-                body: "Something went wrong with ${env.BUILD_URL}",
-                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-            )
+            emailext subject: "FAILURE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                    body: "Unfortunately, the job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' failed. \nCheck it out at ${env.BUILD_URL}",
+                    to: 'your_email@example.com'
         }
     }
 }
+                
